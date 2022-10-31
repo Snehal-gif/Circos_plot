@@ -37,9 +37,10 @@ RCircos.Set.Plot.Area()
 RCircos.Chromosome.Ideogram.Plot()
 
 library(biomaRt)
+library(org.Hs.eg.db)
 
-B_cancer = readRDS("DEG.rds")
-
+Data = readRDS("DEG_data.RDS")
+head(Data)
 
 m = useMart('ensembl', dataset='hsapiens_gene_ensembl')
 
@@ -47,7 +48,7 @@ m = useMart('ensembl', dataset='hsapiens_gene_ensembl')
 coords = getBM(attributes=c('chromosome_name', 'start_position', 
                             'end_position', 'hgnc_symbol'),
                filters = c('hgnc_symbol'),
-               values = list(rownames(mat)),
+               values = list(rownames(Data)),
                mart = m)
 
 
@@ -59,13 +60,38 @@ coords$chromosome_name = factor(coords$chromosome_name, levels = chr_order)
 num = which(is.na(coords$chromosome_name))
 coords = coords[-num, ]
 
-up = which((mat$pval < 0.01) &
-             (mat$log2FC > 1))
-upmat = mat[up, ]
+up = which((Data$pval < 0.01) &
+             (Data$log2FC > 1))
+upmat = Data[up, ]
 
 num = which(coords$hgnc_symbol %in% rownames(upmat))
 coords1 = coords[num, ]
 
+
+
 RCircos.Gene.Name.Plot(coords1, name.col=4, track.num = 2, side = "in",
                        is.sorted = F)
+
+genes = intersect(rownames(Data), coords$hgnc_symbol)
+
+mat1 = Data[genes, ]
+df = cbind.data.frame(rownames(mat1), mat1[, c(1,2,4)])
+colnames(df)[1] = 'hgnc_symbol'
+
+data = merge(coords, df, by = 'hgnc_symbol', all.x = T)
+data=data[,c(2,3,4,1,5,6,7)]
+
+data = data[, c('chromosome_name', 'start_position',
+                'end_position', 'hgnc_symbol',
+                'meanTumor', 'meanControl', 'log2FC')]
+RCircos.Heatmap.Plot(data, data.col = 7, track.num = 6, side = "in",
+                     min.value = -2, max.value =2, genomic.columns = 3,
+                     is.sorted = F)
+RC.param = RCircos.Get.Plot.Parameters()
+RC.param['heatmap.color'] = "GreenWhiteRed"
+RCircos.Reset.Plot.Parameters(RC.param)
+
+RCircos.Heatmap.Plot(data, data.col = 7, track.num = 10, side = "in",
+                     min.value = -2, max.value = 2,
+                     is.sorted = F)
 
